@@ -51,7 +51,7 @@ interface GameState {
   addGuess: (guess: string) => void
   setCurrentGuess: (guess: string) => void
   
-  usePowerUp: (type: PowerUpType, targetId?: string, letter?: string) => void
+  activatePowerUp: (type: PowerUpType, targetId?: string, letter?: string) => void
   setPendingPowerUp: (type: PowerUpType | null) => void
   setPendingPowerUpTarget: (targetId: string | null) => void
   setPendingLetterBan: (letter: string | null) => void
@@ -274,7 +274,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     }))
   },
   
-  usePowerUp: (type, targetId, letter) => {
+  activatePowerUp: (type, targetId, letter) => {
     const { myPowerUpUses, shieldActive } = get()
     
     if (myPowerUpUses[type] <= 0) return

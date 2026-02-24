@@ -87,7 +87,7 @@ export function useRealtime(matchId: string) {
 }
 
 function handlePowerUp(powerUpUse: PowerUpUse) {
-  const { usePowerUp, addBannedLetter, freezePlayer, activateShield, applyBomb, myPlayer } = useGameStore.getState()
+  const { activatePowerUp, addBannedLetter, freezePlayer, activateShield, applyBomb, myPlayer } = useGameStore.getState()
   
   if (!myPlayer) return
   

@@ -66,7 +66,7 @@ export function PowerUpPanel() {
     myPowerUpUses, 
     pendingPowerUp, 
     setPendingPowerUp,
-    usePowerUp,
+    activatePowerUp,
     pendingPowerUpTarget,
     setPendingPowerUpTarget,
     pendingLetterBan,
@@ -92,7 +92,7 @@ export function PowerUpPanel() {
     if (type === 'hint_steal' || type === 'freeze' || type === 'bomb' || type === 'letter_ban') {
       // Need target selection
     } else {
-      usePowerUp(type)
+      activatePowerUp(type)
       setPendingPowerUp(null)
     }
   }
@@ -103,7 +103,7 @@ export function PowerUpPanel() {
     if (pendingPowerUp === 'letter_ban') {
       setPendingPowerUpTarget(targetId)
     } else {
-      usePowerUp(pendingPowerUp, targetId)
+      activatePowerUp(pendingPowerUp, targetId)
       setPendingPowerUp(null)
       setPendingPowerUpTarget(null)
     }
@@ -112,7 +112,7 @@ export function PowerUpPanel() {
   const handleLetterSelect = (letter: string) => {
     if (!pendingPowerUpTarget || pendingPowerUp !== 'letter_ban') return
     
-    usePowerUp('letter_ban', pendingPowerUpTarget, letter)
+    activatePowerUp('letter_ban', pendingPowerUpTarget, letter)
     setPendingPowerUp(null)
     setPendingPowerUpTarget(null)
     setPendingLetterBan(null)
