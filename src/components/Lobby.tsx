@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { GameMode, WORD_LENGTHS, GAME_MODE_CONFIG } from '@/types'
 import { useGameStore } from '@/store/gameStore'
 import { clsx } from 'clsx'
@@ -45,17 +45,65 @@ export function Lobby() {
   const [wordLength, setWordLength] = useState(5)
   const [joinCode, setJoinCode] = useState('')
   const [isJoining, setIsJoining] = useState(false)
+  const [username, setUsername] = useState('')
+  const [showUsernameModal, setShowUsernameModal] = useState(false)
+  const [createdCode, setCreatedCode] = useState('')
   
-  const { createMatch, joinMatch, user } = useGameStore()
+  const { createMatch, joinMatch, user, setUser } = useGameStore()
+  
+  const generateLobbyCode = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+    let code = ''
+    for (let i = 0; i < 6; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+    return code
+  }
   
   const handleCreateGame = () => {
-    createMatch(selectedMode, wordLength)
+    if (!username.trim()) {
+      setShowUsernameModal(true)
+      return
+    }
+    
+    const code = generateLobbyCode()
+    setCreatedCode(code)
+    if (user) {
+      setUser({ ...user, username: username.trim() })
+    }
+    createMatch(selectedMode, wordLength, code)
   }
   
   const handleJoinGame = () => {
     if (joinCode.trim()) {
       joinMatch(joinCode.trim())
       setIsJoining(true)
+    }
+  }
+  
+  const handleQuickPlay = () => {
+    if (!username.trim()) {
+      setShowUsernameModal(true)
+      return
+    }
+    
+    const code = generateLobbyCode()
+    setCreatedCode(code)
+    if (user) {
+      setUser({ ...user, username: username.trim() })
+    }
+    createMatch('arena', 5, code)
+  }
+  
+  const saveUsernameAndPlay = () => {
+    if (username.trim()) {
+      if (user) {
+        setUser({ ...user, username: username.trim() })
+      }
+      setShowUsernameModal(false)
+      const code = generateLobbyCode()
+      setCreatedCode(code)
+      createMatch(selectedMode, wordLength, code)
     }
   }
 
@@ -80,6 +128,37 @@ export function Lobby() {
         <div className="grid md:grid-cols-2 gap-6">
           <div className="space-y-4">
             <h2 className="text-xl font-bold text-cyber-neon-blue">🎮 Create Game</h2>
+            
+            <div>
+              <label className="text-sm text-gray-400 mb-2 block">Your Username</label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Enter username..."
+                className="w-full px-4 py-3 bg-cyber-dark border-2 border-cyber-border rounded-lg text-white placeholder-gray-500 focus:border-cyber-neon-green focus:outline-none"
+                maxLength={15}
+              />
+            </div>
+            
+            {createdCode && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="cyber-card rounded-xl p-4 bg-cyber-neon-green/10 border-cyber-neon-green"
+              >
+                <p className="text-sm text-gray-400 mb-1">Share this code with friends:</p>
+                <div className="text-3xl font-black text-cyber-neon-green tracking-widest text-center py-2">
+                  {createdCode}
+                </div>
+                <button 
+                  onClick={() => navigator.clipboard.writeText(createdCode)}
+                  className="text-xs text-cyber-neon-green hover:underline mt-2 w-full text-center"
+                >
+                  Click to copy
+                </button>
+              </motion.div>
+            )}
             
             <div className="space-y-3">
               <div>
@@ -167,6 +246,15 @@ export function Lobby() {
                 <div className="bg-cyber-dark rounded p-2">🚫 Letter Ban</div>
               </div>
             </div>
+            
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={handleQuickPlay}
+              className="w-full py-3 bg-cyber-neon-orange text-black font-bold rounded-xl"
+            >
+              ⚡ Quick Play (Random Match)
+            </motion.button>
           </div>
         </div>
         
@@ -174,6 +262,46 @@ export function Lobby() {
           <p>Ranked seasons • Battle Pass • No pay-to-win</p>
         </div>
       </motion.div>
+      
+      <AnimatePresence>
+        {showUsernameModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              className="cyber-card rounded-xl p-6 max-w-sm w-full"
+            >
+              <h3 className="text-xl font-bold text-cyber-neon-green mb-4 text-center">
+                Choose Your Username
+              </h3>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Enter username..."
+                className="w-full px-4 py-3 bg-cyber-dark border-2 border-cyber-border rounded-lg text-white placeholder-gray-500 focus:border-cyber-neon-green focus:outline-none mb-4"
+                maxLength={15}
+                autoFocus
+                onKeyDown={(e) => e.key === 'Enter' && saveUsernameAndPlay()}
+              />
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={saveUsernameAndPlay}
+                disabled={!username.trim()}
+                className="w-full py-3 bg-cyber-neon-green text-black font-bold rounded-xl disabled:opacity-50"
+              >
+                Let's Play! 🎮
+              </motion.button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

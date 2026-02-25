@@ -29,6 +29,7 @@ export function GameArena() {
     addEmote,
     setTimeLeft,
     resetGame,
+    emotes,
   } = useGameStore()
   
   const [letterStatuses, setLetterStatuses] = useState<Record<string, LetterStatus>>({})
@@ -264,6 +265,22 @@ export function GameArena() {
             />
           )}
         </AnimatePresence>
+        
+        <div className="fixed inset-0 pointer-events-none z-40">
+          {emotes.map((emote) => (
+            <motion.div
+              key={emote.id}
+              initial={{ opacity: 1, y: 0, scale: 0.5 }}
+              animate={{ opacity: 0, y: -100, scale: 1.5 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 2 }}
+              className="absolute text-4xl"
+              style={{ left: `${emote.x * 100}%`, top: `${emote.y * 100}%` }}
+            >
+              {emote.emoji}
+            </motion.div>
+          ))}
+        </div>
       </div>
     </div>
   )

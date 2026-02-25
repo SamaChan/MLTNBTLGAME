@@ -41,7 +41,7 @@ interface GameState {
   emotes: { id: string; userId: string; username: string; emoji: string; x: number; y: number }[]
   
   setUser: (user: User | null) => void
-  createMatch: (mode: GameMode, wordLength: number) => void
+  createMatch: (mode: GameMode, wordLength: number, lobbyCode?: string) => void
   joinMatch: (matchId: string) => void
   startMatch: () => void
   setMatch: (match: Match) => void
@@ -139,10 +139,10 @@ export const useGameStore = create<GameState>((set, get) => ({
   
   setUser: (user) => set({ user }),
   
-  createMatch: (mode, wordLength) => {
+  createMatch: (mode, wordLength, lobbyCode = '') => {
     const secretWord = getRandomWord(wordLength)
     const newMatch: Match = {
-      id: crypto.randomUUID(),
+      id: lobbyCode || crypto.randomUUID(),
       mode,
       status: 'waiting',
       word_length: wordLength,
