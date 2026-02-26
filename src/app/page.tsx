@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useGameStore } from '@/store/gameStore'
 import { Lobby } from '@/components/Lobby'
+import { WaitingLobby } from '@/components/WaitingLobby'
 import { GameArena } from '@/components/GameArena'
 import { createClient } from '@/lib/supabase'
 import { User } from '@/types'
@@ -78,7 +79,11 @@ export default function Home() {
   
   return (
     <main>
-      {match ? <GameArena /> : <Lobby />}
+      {match ? (
+        gameStatus === 'waiting' ? <WaitingLobby /> : <GameArena />
+      ) : (
+        <Lobby />
+      )}
     </main>
   )
 }

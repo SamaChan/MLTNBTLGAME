@@ -42,7 +42,8 @@ interface GameState {
   
   setUser: (user: User | null) => void
   createMatch: (mode: GameMode, wordLength: number, lobbyCode?: string) => void
-  joinMatch: (matchId: string) => void
+  joinMatch: (matchId: string, isHost?: boolean) => void
+  addBot: (botName?: string) => void
   startMatch: () => void
   setMatch: (match: Match) => void
   setMyPlayer: (player: Player) => void
@@ -140,23 +141,73 @@ export const useGameStore = create<GameState>((set, get) => ({
   setUser: (user) => set({ user }),
   
   createMatch: (mode, wordLength, lobbyCode = '') => {
+    const { user } = get()
+    if (!user) return
+    
     const secretWord = getRandomWord(wordLength)
+    const hostPlayer: Player = {
+      id: crypto.randomUUID(),
+      user_id: user.id,
+      username: user.username,
+      avatar_url: user.avatar_url,
+      guesses: [],
+      currentGuess: '',
+      solved: false,
+      score: 0,
+      isHost: true,
+    }
+    
     const newMatch: Match = {
       id: lobbyCode || crypto.randomUUID(),
       mode,
       status: 'waiting',
       word_length: wordLength,
       secret_word: secretWord,
-      players: [],
+      players: [hostPlayer],
       max_players: mode === 'duel' ? 2 : mode === 'arena' ? 4 : mode === 'chaos' ? 8 : mode === 'team' ? 6 : 8,
       created_at: Date.now(),
     }
-    set({ match: newMatch, gameStatus: 'waiting' })
+    
+    set({ 
+      match: newMatch, 
+      myPlayer: hostPlayer,
+      gameStatus: 'waiting',
+      localGuesses: { [hostPlayer.id]: [] }
+    })
   },
   
-  joinMatch: (matchId) => {
-    const { match, user } = get()
-    if (!match || !user) return
+  addBot: (botName?: string) => {
+    const { match, localGuesses } = get()
+    if (!match) return
+    
+    const botNames = ['BotAlice', 'BotBob', 'BotCharlie', 'BotDave', 'BotEve', 'BotFrank', 'BotGrace', 'BotHenry']
+    const existingBotNames = match.players.filter(p => p.username.startsWith('Bot')).map(p => p.username)
+    const availableBotNames = botNames.filter(n => !existingBotNames.includes(n))
+    const selectedName = botName || availableBotNames[0] || `Bot${Math.floor(Math.random() * 100)}`
+    
+    const botPlayer: Player = {
+      id: crypto.randomUUID(),
+      user_id: 'bot',
+      username: selectedName,
+      guesses: [],
+      currentGuess: '',
+      solved: false,
+      score: 0,
+      isBot: true,
+    }
+    
+    const updatedPlayers = [...match.players, botPlayer]
+    const updatedMatch = { ...match, players: updatedPlayers }
+    
+    set({ 
+      match: updatedMatch,
+      localGuesses: { ...localGuesses, [botPlayer.id]: [] }
+    })
+  },
+  
+  joinMatch: (matchId, isHost = false) => {
+    const { user, match: existingMatch } = get()
+    if (!user) return
     
     const newPlayer: Player = {
       id: crypto.randomUUID(),
@@ -167,16 +218,38 @@ export const useGameStore = create<GameState>((set, get) => ({
       currentGuess: '',
       solved: false,
       score: 0,
+      isHost,
     }
     
-    const updatedPlayers = [...match.players, newPlayer]
-    const updatedMatch = { ...match, players: updatedPlayers }
+    const { localGuesses } = get()
     
-    set({ 
-      match: updatedMatch, 
-      myPlayer: newPlayer,
-      localGuesses: { [newPlayer.id]: [] }
-    })
+    if (existingMatch && existingMatch.id === matchId) {
+      const updatedPlayers = [...existingMatch.players, newPlayer]
+      const updatedMatch = { ...existingMatch, players: updatedPlayers }
+      set({ 
+        match: updatedMatch, 
+        myPlayer: newPlayer,
+        localGuesses: { ...localGuesses, [newPlayer.id]: [] }
+      })
+    } else {
+      const secretWord = getRandomWord(5)
+      const newMatch: Match = {
+        id: matchId,
+        mode: 'duel',
+        status: 'waiting',
+        word_length: 5,
+        secret_word: secretWord,
+        players: [newPlayer],
+        max_players: 2,
+        created_at: Date.now(),
+      }
+      set({ 
+        match: newMatch, 
+        myPlayer: newPlayer,
+        gameStatus: 'waiting',
+        localGuesses: { [newPlayer.id]: [] }
+      })
+    }
   },
   
   startMatch: () => {

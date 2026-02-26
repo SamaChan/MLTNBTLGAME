@@ -27,6 +27,8 @@ export interface Player {
   lives?: number
   score: number
   isWinner?: boolean
+  isHost?: boolean
+  isBot?: boolean
   frozen?: boolean
   shield_active?: boolean
   banned_letters?: { letter: string; expiresAt: number }[]
