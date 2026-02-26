@@ -46,8 +46,9 @@ export function Keyboard({
   }
 
   const handleKeyPress = (key: string) => {
+    console.log('Keyboard handleKeyPress:', key, 'disabled:', disabled)
     if (disabled) return
-    if (bannedLetters.includes(key)) return
+    if (key !== 'ENTER' && key !== '⌫' && bannedLetters.includes(key)) return
     onKeyPress(key)
   }
 

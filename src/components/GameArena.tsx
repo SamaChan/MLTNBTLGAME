@@ -34,8 +34,8 @@ export function GameArena() {
   
   const [letterStatuses, setLetterStatuses] = useState<Record<string, LetterStatus>>({})
   const [showEmoteWheel, setShowEmoteWheel] = useState(false)
+  const [currentGuess, setCurrentGuessLocal] = useState('')
   
-  const currentGuess = myPlayer?.currentGuess || ''
   const guesses = localGuesses[myPlayer?.id || ''] || []
   
   useEffect(() => {
@@ -80,8 +80,8 @@ export function GameArena() {
   const handleKeyPress = useCallback((key: string) => {
     if (gameStatus !== 'playing' || isFrozen) return
     
-    if (key === '⌫') {
-      setCurrentGuess(currentGuess.slice(0, -1))
+    if (key === '⌫' || key === 'BACKSPACE') {
+      setCurrentGuessLocal(prev => prev.slice(0, -1))
       return
     }
     
@@ -96,7 +96,7 @@ export function GameArena() {
           guess: currentGuess,
           isMe: true,
         })
-        setCurrentGuess('')
+        setCurrentGuessLocal('')
       }
       return
     }
@@ -105,9 +105,9 @@ export function GameArena() {
       if (bannedLetters.some(b => b.letter === key && b.expiresAt > Date.now())) {
         return
       }
-      setCurrentGuess(currentGuess + key)
+      setCurrentGuessLocal(prev => prev + key)
     }
-  }, [currentGuess, gameStatus, isFrozen, match?.word_length, bannedLetters, submitGuess, setCurrentGuess, addToGuessFeed, myPlayer?.username])
+  }, [currentGuess, gameStatus, isFrozen, match?.word_length, bannedLetters, submitGuess, addToGuessFeed, myPlayer?.username])
   
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
