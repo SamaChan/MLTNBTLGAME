@@ -30,6 +30,9 @@ export function GameArena() {
     setTimeLeft,
     resetGame,
     emotes,
+    powerBar,
+    maxPowerBar,
+    botGuess,
   } = useGameStore()
   
   const [letterStatuses, setLetterStatuses] = useState<Record<string, LetterStatus>>({})
@@ -47,6 +50,32 @@ export function GameArena() {
     
     return () => clearInterval(interval)
   }, [gameStatus, timeLeft, setTimeLeft])
+  
+  useEffect(() => {
+    if (gameStatus !== 'playing' || !match) return
+    
+    const bots = match.players.filter(p => p.isBot)
+    if (bots.length === 0) return
+    
+    const guessIntervals: NodeJS.Timeout[] = []
+    
+    bots.forEach((bot, index) => {
+      const delay = 2000 + Math.random() * 3000 + index * 1500
+      
+      const timeout = setTimeout(() => {
+        const botGuesses = localGuesses[bot.id] || []
+        if (botGuesses.length < 6) {
+          botGuess(bot.id)
+        }
+      }, delay)
+      
+      guessIntervals.push(timeout)
+    })
+    
+    return () => {
+      guessIntervals.forEach(t => clearTimeout(t))
+    }
+  }, [gameStatus, match?.id])
   
   useEffect(() => {
     if (winner) {
@@ -164,6 +193,19 @@ export function GameArena() {
           </h1>
           
           <div className="flex items-center gap-4">
+            <div className="flex flex-col items-end">
+              <div className="text-xs text-gray-400 mb-1">⚡ Power</div>
+              <div className="w-24 h-4 bg-cyber-dark rounded-full overflow-hidden border border-cyber-border">
+                <motion.div 
+                  className="h-full bg-gradient-to-r from-cyber-neon-blue to-cyber-neon-purple"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${(powerBar / maxPowerBar) * 100}%` }}
+                  transition={{ type: 'spring', stiffness: 100 }}
+                />
+              </div>
+              <div className="text-xs text-cyber-neon-blue mt-0.5">{powerBar}/{maxPowerBar}</div>
+            </div>
+            
             <div className={clsx(
               'text-sm sm:text-base font-mono font-bold px-3 py-1 rounded-lg',
               timeLeft < 30 ? 'bg-red-500/20 text-red-400 animate-pulse' : 'bg-cyber-card text-cyber-neon-blue'

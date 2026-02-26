@@ -6,7 +6,7 @@ import { useGameStore } from '@/store/gameStore'
 import { clsx } from 'clsx'
 
 export function WaitingLobby() {
-  const { match, myPlayer, startMatch, addBot, resetGame } = useGameStore()
+  const { match, myPlayer, startMatch, addBot, removeBot, resetGame } = useGameStore()
   const [showCopyToast, setShowCopyToast] = useState(false)
   
   if (!match) return null
@@ -80,21 +80,31 @@ export function WaitingLobby() {
                   player.id === myPlayer?.id ? 'bg-cyber-neon-green/20 border border-cyber-neon-green' : 'bg-cyber-dark'
                 )}
               >
-                <div className="flex items-center gap-3">
-                  <div className={clsx(
-                    'w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold',
-                    player.isBot ? 'bg-cyber-neon-orange text-black' : 'bg-cyber-neon-blue text-black'
-                  )}>
-                    {player.username[0].toUpperCase()}
-                  </div>
-                  <div>
-                    <div className="font-bold text-white">
-                      {player.username}
-                      {player.id === myPlayer?.id && ' (You)'}
-                      {player.isHost && ' 👑'}
-                      {player.isBot && ' 🤖'}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={clsx(
+                      'w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold',
+                      player.isBot ? 'bg-cyber-neon-orange text-black' : 'bg-cyber-neon-blue text-black'
+                    )}>
+                      {player.username[0].toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="font-bold text-white">
+                        {player.username}
+                        {player.id === myPlayer?.id && ' (You)'}
+                        {player.isHost && ' 👑'}
+                        {player.isBot && ' 🤖'}
+                      </div>
                     </div>
                   </div>
+                  {player.isBot && player.id !== myPlayer?.id && (
+                    <button
+                      onClick={() => removeBot(player.id)}
+                      className="text-red-400 hover:text-red-300 text-sm"
+                    >
+                      ✕
+                    </button>
+                  )}
                 </div>
               </motion.div>
             ))}

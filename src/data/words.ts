@@ -49,7 +49,7 @@ export const WORDS_4 = [
   'walk', 'wall', 'want', 'ward', 'warm', 'wash', 'wave', 'ways', 'weak', 'wear',
   'week', 'well', 'went', 'were', 'west', 'what', 'when', 'whom', 'wide', 'wife',
   'wild', 'will', 'wind', 'wine', 'wing', 'wire', 'wise', 'wish', 'with', 'wood',
-  'word', 'work', 'yard', 'yeah', 'year', 'your', 'zero', 'zone'
+  'word', 'work', 'yard', 'yeah', 'year', 'your', 'zero', 'zone', 'zoom'
 ]
 
 export const WORDS_5 = [
@@ -427,7 +427,18 @@ export function getWordList(length: number): string[] {
   }
 }
 
+export function isValidWord(word: string, length: number): boolean {
+  const list = getWordList(length)
+  return list.includes(word.toLowerCase())
+}
+
 export function getRandomWord(length: number): string {
   const words = getWordList(length)
   return words[Math.floor(Math.random() * words.length)].toUpperCase()
+}
+
+export function getRandomWords(length: number, count: number): string[] {
+  const words = getWordList(length)
+  const shuffled = [...words].sort(() => Math.random() - 0.5)
+  return shuffled.slice(0, count).map(w => w.toUpperCase())
 }

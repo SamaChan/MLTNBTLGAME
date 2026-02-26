@@ -10,7 +10,7 @@ import {
   LETTER_STATUS,
   PowerUpUse
 } from '@/types'
-import { getRandomWord, getWordList } from '@/data/words'
+import { getRandomWord, getWordList, isValidWord, getRandomWords } from '@/data/words'
 
 interface ActivePowerUp {
   type: PowerUpType
@@ -34,6 +34,8 @@ interface GameState {
   doubleGuessUsed: boolean
   shieldActive: boolean
   myPowerUpUses: Record<PowerUpType, number>
+  powerBar: number
+  maxPowerBar: number
   pendingPowerUp: PowerUpType | null
   pendingPowerUpTarget: string | null
   pendingLetterBan: string | null
@@ -44,6 +46,7 @@ interface GameState {
   createMatch: (mode: GameMode, wordLength: number, lobbyCode?: string) => void
   joinMatch: (matchId: string, isHost?: boolean) => void
   addBot: (botName?: string) => void
+  removeBot: (playerId: string) => void
   startMatch: () => void
   setMatch: (match: Match) => void
   setMyPlayer: (player: Player) => void
@@ -75,6 +78,11 @@ interface GameState {
   
   setWinner: (player: Player | null) => void
   resetGame: () => void
+  
+  // Bot AI
+  botGuess: (playerId: string) => void
+  usePowerBar: (amount: number) => boolean
+  gainPowerBar: (amount: number) => void
 }
 
 const MAX_GUESSES = 6
@@ -106,11 +114,6 @@ function checkGuess(guess: string, secret: string): { letter: string; status: Le
   return result
 }
 
-function isWordValid(word: string, length: number): boolean {
-  const wordList = getWordList(length)
-  return wordList.includes(word.toLowerCase())
-}
-
 export const useGameStore = create<GameState>((set, get) => ({
   user: null,
   match: null,
@@ -132,6 +135,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     shield: 3,
     letter_ban: 2,
   },
+  powerBar: 0,
+  maxPowerBar: 100,
   pendingPowerUp: null,
   pendingPowerUpTarget: null,
   pendingLetterBan: null,
@@ -205,6 +210,116 @@ export const useGameStore = create<GameState>((set, get) => ({
     })
   },
   
+  removeBot: (playerId) => {
+    const { match, localGuesses } = get()
+    if (!match) return
+    
+    const updatedPlayers = match.players.filter(p => p.id !== playerId)
+    const updatedMatch = { ...match, players: updatedPlayers }
+    const newLocalGuesses = { ...localGuesses }
+    delete newLocalGuesses[playerId]
+    
+    set({ 
+      match: updatedMatch,
+      localGuesses: newLocalGuesses
+    })
+  },
+  
+  botGuess: (playerId) => {
+    const { match, localGuesses, gameStatus } = get()
+    if (!match || gameStatus !== 'playing') return
+    
+    const bot = match.players.find(p => p.id === playerId)
+    if (!bot || !bot.isBot) return
+    
+    const playerGuesses = localGuesses[playerId] || []
+    if (playerGuesses.length >= MAX_GUESSES) return
+    
+    const wordLength = match.word_length
+    const secret = match.secret_word
+    
+    const possibleWords = getRandomWords(wordLength, 20)
+    
+    let selectedWord = possibleWords[0]
+    
+    if (playerGuesses.length > 0) {
+      const letters = playerGuesses.flat()
+      const correctPositions: Record<number, string> = {}
+      const presentLetters: string[] = []
+      const absentLetters: string[] = []
+      
+      letters.forEach((l, i) => {
+        const row = Math.floor(i / wordLength)
+        const col = i % wordLength
+        if (l.status === 'correct') {
+          correctPositions[col] = l.letter
+        } else if (l.status === 'present') {
+          presentLetters.push(l.letter)
+        } else {
+          absentLetters.push(l.letter)
+        }
+      })
+      
+      for (const word of possibleWords) {
+        let valid = true
+        for (const [pos, letter] of Object.entries(correctPositions)) {
+          if (word[parseInt(pos)] !== letter) {
+            valid = false
+            break
+          }
+        }
+        if (valid && presentLetters.some(l => !word.includes(l))) {
+          valid = false
+        }
+        if (valid && absentLetters.some(l => word.includes(l))) {
+          valid = false
+        }
+        if (valid) {
+          selectedWord = word
+          break
+        }
+      }
+    }
+    
+    const guessResult = checkGuess(selectedWord, secret)
+    
+    set((state) => {
+      const newGuesses = [...playerGuesses, guessResult]
+      const solved = selectedWord === secret
+      
+      const updatedBot = {
+        ...bot,
+        guesses: [...bot.guesses, selectedWord],
+        solved,
+        solvedAt: solved ? Date.now() : undefined,
+        isWinner: solved,
+      }
+      
+      const updatedPlayers = state.match!.players.map(p => 
+        p.id === playerId ? updatedBot : p
+      )
+      
+      return {
+        match: { ...state.match!, players: updatedPlayers },
+        localGuesses: { ...state.localGuesses, [playerId]: newGuesses },
+        gameStatus: solved ? 'finished' : state.gameStatus,
+        winner: solved ? updatedBot : state.winner,
+      }
+    })
+  },
+  
+  usePowerBar: (amount) => {
+    const { powerBar } = get()
+    if (powerBar < amount) return false
+    set({ powerBar: powerBar - amount })
+    return true
+  },
+  
+  gainPowerBar: (amount) => {
+    const { powerBar, maxPowerBar } = get()
+    set({ powerBar: Math.min(maxPowerBar, powerBar + amount) })
+  },
+  
   joinMatch: (matchId, isHost = false) => {
     const { user, match: existingMatch } = get()
     if (!user) return
@@ -268,14 +383,15 @@ export const useGameStore = create<GameState>((set, get) => ({
   setMyPlayer: (player) => set({ myPlayer: player }),
   
   submitGuess: (guess) => {
-    const { match, myPlayer, isFrozen, bannedLetters, doubleGuessUsed } = get()
-    if (!match || !myPlayer || isFrozen) return false
+    const { match, myPlayer, isFrozen, bannedLetters, doubleGuessUsed, powerBar } = get()
+    if (!match || !myPlayer) return false
+    if (isFrozen) return false
     
     const normalizedGuess = guess.toUpperCase()
     const wordLength = match.word_length
     
     if (normalizedGuess.length !== wordLength) return false
-    if (!isWordValid(normalizedGuess, wordLength)) return false
+    if (!isValidWord(normalizedGuess, wordLength)) return false
     
     const hasBannedLetter = bannedLetters.some(
       b => normalizedGuess.includes(b.letter) && b.expiresAt > Date.now()
@@ -283,6 +399,14 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (hasBannedLetter) return false
     
     const guessResult = checkGuess(normalizedGuess, match.secret_word)
+    
+    let correctLetters = 0
+    guessResult.forEach(g => {
+      if (g.status === 'correct') correctLetters++
+    })
+    
+    const powerGain = correctLetters * 10
+    const newPowerBar = Math.min(100, powerBar + powerGain)
     
     set((state) => {
       const playerGuesses = state.localGuesses[myPlayer.id] || []
@@ -318,6 +442,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         doubleGuessUsed: get().pendingPowerUp === 'double_guess' ? true : state.doubleGuessUsed,
         pendingPowerUp: null,
         pendingPowerUpTarget: null,
+        powerBar: newPowerBar,
       }
     })
     
@@ -530,6 +655,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       shield: 3,
       letter_ban: 2,
     },
+    powerBar: 0,
+    maxPowerBar: 100,
     pendingPowerUp: null,
     pendingPowerUpTarget: null,
     pendingLetterBan: null,
